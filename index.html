@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Futuristic Poultry Ration Formulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #eef2ff; } /* Light Blue/Gray Background */
+        .tab-button { transition: all 0.2s; border: 1px solid transparent; }
+        .tab-button.active { background-color: #10b981; color: white; border-color: #059669; }
+        .tab-button:not(.active) { background-color: #f3f4f6; color: #4b5563; }
+        
+        .input-cost { width: 100px; text-align: right; }
+        .safe { color: #059669; font-weight: 600; } /* Emerald-600 */
+        .risk { color: #f59e0b; font-weight: 600; } /* Amber-500 */
+        .danger { color: #ef4444; font-weight: 600; } /* Red-500 */
+        
+        .card { background-color: white; border-radius: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); transition: transform 0.3s ease-in-out; }
+        .card:hover { transform: translateY(-3px); }
+
+        .developer-box { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); border: 3px solid #60a5fa; color: white; border-radius: 1rem; padding: 1rem; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); }
+        .developer-name { font-size: 1.5rem; font-weight: 900; letter-spacing: 0.05em; }
+        
+        .achieved-cell { background-color: #f7f9fb; }
+        .alert-indicator { background-color: #fef3c7; border: 1px solid #fbbf24; color: #b45309; font-weight: 600; padding: 0.25rem 0.5rem; border-radius: 0.5rem; margin-left: 0.5rem; font-size: 0.75rem; }
+        
+        /* Custom adjustment for smaller columns inside the grid to prevent overflow */
+        .nutrient-table-col { width: 33%; }
+    </style>
+</head>
+<body>
+
+<div id="app" class="max-w-7xl mx-auto p-10 bg-white rounded-3xl my-8 shadow-2xl">
+    <header class="mb-6 border-b border-gray-200 pb-4">
+        <h1 class="text-4xl font-extrabold text-blue-700 tracking-tight">
+            Least-Cost Poultry Ration Formulator
+        </h1>
+        <p class="text-gray-500 mt-1 text-lg">Optimizing feed costs using Linear Programming principles and local Bangladeshi ingredients.</p>
+        
+        <!-- Developer Highlighted Section -->
+        <div class="mt-4 developer-box">
+            <p class="developer-name">MD AKRAMUL HAQUE</p>
+            <span class="text-sm font-light opacity-80">BCS (LIVESTOCK), DLS, BANGLADESH</span>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <div class="flex space-x-2 border-b border-gray-300 mb-6">
+        <button id="tab-broiler" class="tab-button active px-6 py-2 font-semibold text-base rounded-t-xl" onclick="setActiveTab('broiler')">Broiler</button>
+        <button id="tab-layer" class="tab-button px-6 py-2 font-semibold text-base rounded-t-xl" onclick="setActiveTab('layer')">Layer</button>
+        <button id="tab-sonali" class="tab-button px-6 py-2 font-semibold text-base rounded-t-xl" onclick="setActiveTab('sonali')">Sonali/Dual</button>
+    </div>
+
+    <!-- MAIN CONTENT: Now stacked in a single column (grid-cols-1) -->
+    <div class="grid grid-cols-1 gap-6">
+        
+        <!-- Input Panel: Ingredient Cost & Strategy (Col 1 - Top) -->
+        <div class="p-4 bg-gray-50 rounded-xl shadow-lg h-fit">
+            <h2 class="text-xl font-extrabold mb-4 text-gray-800 border-b border-gray-200 pb-2">1. Market Inputs (BDT/kg)</h2>
+            
+            <div class="space-y-4 mb-6">
+                <div class="mb-2">
+                    <label for="phase-select" class="block text-sm font-bold text-blue-700 mb-1">Production Phase</label>
+                    <select id="phase-select" onchange="setPhase(this.value)" class="w-full p-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 transition duration-150 shadow-sm">
+                        <!-- Options populated by JS -->
+                    </select>
+                </div>
+                <div>
+                    <label for="strategy-select" class="block text-sm font-bold text-blue-700 mb-1">Formulation Strategy</label>
+                    <select id="strategy-select" onchange="setStrategy(this.value)" class="w-full p-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 transition duration-150 shadow-sm">
+                        <option value="cost">Most Cost-Effective (Min Specs)</option>
+                        <option value="balanced">Balanced (Optimal FCR)</option>
+                        <option value="premium">Premium Performance (Max Safety)</option>
+                    </select>
+                </div>
+            </div>
+
+            <h3 class="text-lg font-bold mb-4 text-gray-800 border-b border-gray-200 pb-2">Ingredient Cost & Constraints</h3>
+            <div id="ingredient-costs" class="space-y-4 text-sm">
+                <!-- Ingredient cost inputs will be populated here by JS -->
+            </div>
+            <button onclick="solve()" class="w-full mt-8 px-6 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition duration-150 shadow-lg shadow-green-300/50 transform hover:scale-[1.01]">
+                🚀 Find Optimal Ration
+            </button>
+        </div>
+
+        <!-- Output Panel: Optimized Mix & Nutrient Check (Col 2 - Middle) -->
+        <div class="p-4 card">
+            <h2 class="text-xl font-extrabold mb-4 text-gray-800 border-b border-gray-200 pb-2">2. Optimized Mix Result</h2>
+            <div id="optimized-output">
+                <p class="text-4xl font-black mb-4 tracking-tighter">
+                    Total Cost: <span id="total-cost" class="text-red-600">55.90</span> <span class="text-2xl text-gray-500">BDT/Kg</span>
+                </p>
+                
+                <!-- Mix Table -->
+                <h3 class="font-bold text-gray-600 mb-2 mt-4 text-lg">Ingredient Mix (Per 100 kg)</h3>
+                <div class="bg-blue-50 rounded-xl overflow-hidden shadow-inner">
+                    <table class="min-w-full divide-y divide-blue-200">
+                        <thead class="bg-blue-100">
+                            <tr>
+                                <th class="px-2 py-2 text-left text-xs font-bold text-blue-800 uppercase">Ingredient</th>
+                                <th class="px-2 py-2 text-right text-xs font-bold text-blue-800 uppercase w-[25%]">Mix % (kg)</th>
+                                <th class="px-2 py-2 text-right text-xs font-bold text-blue-800 uppercase w-[15%]">Range %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mix-table-body" class="bg-white divide-y divide-gray-100 text-sm">
+                            <!-- Data rows populated by JS -->
+                        </tbody>
+                        <tfoot class="bg-blue-500 text-white font-bold">
+                            <tr>
+                                <td class="px-2 py-2 text-sm">Total Weight</td>
+                                <td class="px-2 py-2 text-right text-sm"><span id="total-weight">100.00</span> kg</td>
+                                <td class="px-2 py-2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- Nutrient Check Table -->
+                <h3 class="font-bold text-gray-600 mb-2 mt-6 text-lg">Nutrient Achievement Check (<span id="current-phase-name"></span>)</h3>
+                <div class="bg-green-50 rounded-xl overflow-hidden shadow-inner">
+                    <table class="min-w-full divide-y divide-green-200">
+                        <thead class="bg-green-100">
+                            <tr>
+                                <th class="px-2 py-2 text-left text-xs font-bold text-green-800 uppercase nutrient-table-col">Nutrient</th>
+                                <th class="px-2 py-2 text-right text-xs font-bold text-green-800 uppercase nutrient-table-col">Required (Min)</th>
+                                <th class="px-2 py-2 text-right text-xs font-bold text-green-800 uppercase nutrient-table-col">Achieved</th>
+                            </tr>
+                        </thead>
+                        <tbody id="nutrient-check-body" class="bg-white divide-y divide-gray-100 text-sm">
+                            <!-- Data rows populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-6 p-4 rounded-xl text-sm border border-gray-200 bg-gray-50" id="recommendation-level">
+                    <p class="font-bold text-gray-700 text-base">Recommendation:</p>
+                    <p id="cost-efficiency" class="mt-1 text-green-700 font-medium">The **Most Cost-Effective** ration is calculated at **55.90 BDT/kg** for the current phase. This mix focuses on minimum nutrient compliance at the lowest possible cost.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytical Panel: Price History, Insights & Cost (Col 3 - Bottom) -->
+        <div class="space-y-4">
+            
+            <!-- Price History & Trends (Item 3) -->
+            <div class="p-4 card border-t-4 border-yellow-500">
+                <h2 class="text-xl font-extrabold mb-4 text-yellow-700 border-b border-gray-200 pb-2">3. Market Price Trends & Alerts</h2>
+                
+                <div id="price-history-output">
+                    <h3 class="font-bold text-gray-700 mb-2">Simulated Price Trends (BDT/kg)</h3>
+                    <div id="price-trends-chart" class="p-3 bg-yellow-50 rounded-xl mb-4 text-sm shadow-inner">
+                        <!-- Chart/Trend simulation -->
+                    </div>
+                    
+                    <h3 class="font-bold text-gray-700 mb-2">Buying Opportunity Alerts</h3>
+                    <div id="price-alerts" class="space-y-2 text-sm">
+                        <p class="text-gray-500 italic">No price alerts active.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sensitivity Analysis (Item 4) -->
+            <div class="p-4 card border-t-4 border-red-500">
+                <h2 class="text-xl font-extrabold mb-4 text-red-700 border-b border-gray-200 pb-2">4. Cost Sensitivity Analysis</h2>
+                
+                <div id="sensitivity-analysis-output">
+                    <p class="text-sm text-gray-600 mb-4">Impact on cost (BDT/kg) if top ingredient prices fluctuate by **±10%**.</p>
+                    
+                    <h3 class="font-bold text-gray-700 mb-2">Potential Cost Range (BDT/kg)</h3>
+                    <div class="p-3 bg-red-50 rounded-xl mb-6 shadow-inner">
+                        <p class="text-lg font-bold text-red-700">Current Cost: <span id="sa-current-cost">55.90</span></p>
+                        <p class="text-lg font-bold text-red-800">Worst Case (+10%): <span id="sa-worst-case">58.62</span></p>
+                        <p class="text-lg font-bold text-green-700">Best Case (-10%): <span id="sa-best-case">53.18</span></p>
+                    </div>
+                    
+                    <h3 class="font-bold text-gray-700 mb-2">Top 4 Price Drivers</h3>
+                    <div class="bg-gray-100 rounded-xl overflow-hidden shadow-inner">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-200">
+                                <tr>
+                                    <th class="px-2 py-2 text-left text-xs font-bold text-gray-600 uppercase">Ingredient</th>
+                                    <th class="px-2 py-2 text-right text-xs font-bold text-gray-600 uppercase">Impact (BDT/kg)</th>
+                                    <th class="px-2 py-2 text-right text-xs font-bold text-gray-600 uppercase">Mix %</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sa-impact-body" class="bg-white divide-y divide-gray-100 text-sm">
+                                <!-- Data rows populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Ingredient Substitution Helper (Item 5) -->
+            <div class="p-4 card border-t-4 border-purple-500">
+                <h2 class="text-xl font-extrabold mb-4 text-purple-700 border-b border-gray-200 pb-2">5. Substitution Helper</h2>
+                
+                <div class="space-y-4">
+                    <div class="flex space-x-2">
+                        <div class="w-1/2">
+                            <label for="sub-original" class="block text-xs font-bold text-gray-600 mb-1">Replace Ingredient</label>
+                            <select id="sub-original" class="w-full p-2 border border-gray-300 rounded-lg text-sm shadow-sm">
+                                <option value="Soybean Meal (44%)">Soybean Meal (44%)</option>
+                                <option value="Maize">Maize</option>
+                                <option value="Fish Meal (50%)">Fish Meal (50%)</option>
+                            </select>
+                        </div>
+                        <div class="w-1/2">
+                            <label for="sub-alternative" class="block text-xs font-bold text-gray-600 mb-1">With Alternative</label>
+                            <select id="sub-alternative" class="w-full p-2 border border-gray-300 rounded-lg text-sm shadow-sm">
+                                <option value="Mustard Seed Meal (32%)">Mustard Seed Meal (32%)</option>
+                                <option value="DORB (Deoiled Rice Bran)">DORB (Deoiled Rice Bran)</option>
+                                <option value="Rice Broken/Kura">Rice Broken/Kura</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="flex space-x-2">
+                        <div class="w-1/2">
+                            <label for="sub-percentage" class="block text-xs font-bold text-gray-600 mb-1">Substitution % (of mix)</label>
+                            <input type="number" id="sub-percentage" value="5" min="1" max="100" class="w-full p-2 border border-gray-300 rounded-lg text-sm shadow-sm">
+                        </div>
+                        <button onclick="calculateSubstitution()" class="w-1/2 bg-purple-500 text-white font-bold rounded-lg hover:bg-purple-600 transition duration-150 shadow-md">
+                            Analyze Swap
+                        </button>
+                    </div>
+                    
+                    <div id="substitution-output" class="p-3 bg-purple-50 rounded-xl text-sm shadow-inner border border-purple-200">
+                        <p class="font-bold text-gray-800 mb-1">Results:</p>
+                        <p id="sub-cost-impact" class="text-sm font-semibold"></p>
+                        <p id="sub-nutrient-gap" class="text-sm"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Batch Cost Calculator (Item 6) -->
+            <div class="p-4 card border-t-4 border-green-500">
+                <h2 class="text-xl font-extrabold mb-4 text-green-700 border-b border-gray-200 pb-2">6. Batch Cost Calculator</h2>
+                
+                <div class="flex space-x-2 items-end">
+                    <div class="w-2/3">
+                        <label for="batch-size" class="block text-xs font-bold text-gray-600 mb-1">Batch Size (Tonnes)</label>
+                        <input type="number" id="batch-size" value="1" min="1" class="w-full p-3 border border-gray-300 rounded-lg text-sm shadow-sm">
+                    </div>
+                    <button onclick="calculateBatchCost()" class="w-1/3 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 transition duration-150 shadow-md h-12">
+                        Calculate
+                    </button>
+                </div>
+                
+                <div id="batch-output" class="mt-4 p-3 bg-green-50 rounded-xl text-sm shadow-inner border border-green-200">
+                    <p class="font-bold text-gray-800 mb-1">Batch Total Cost:</p>
+                    <p id="batch-total-cost" class="text-xl font-bold text-green-700">55,900.00 BDT</p>
+                    <p id="batch-ingredient-details" class="text-xs text-gray-600 mt-2">Total weight (1,000 Kg): Maize: 570.00 Kg, Rice Broken/Kura: 50.00 Kg, DORB (Deoiled Rice Bran): 20.00 Kg, Soybean Meal (44%): 300.00 Kg, Mustard Seed Meal (32%): 0.00 Kg, Fish Meal (50%): 20.00 Kg, DCP/Bone Meal: 15.00 Kg, Calcite/Limestone: 0.00 Kg, Oil (Vegetable/Soy/Palm): 30.00 Kg, DL-Methionine: 1.50 Kg, L-Lysine: 0.50 Kg, Vitamin/Mineral Premix: 3.00 Kg</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    // 5. Rationale and Tooltip Data
+    const INGREDIENT_RATIONALE = {
+        'Maize': "The primary source of energy (ME). Its inclusion rate largely determines the final feed cost.",
+        'Rice Broken/Kura': "A secondary energy source, often used to reduce formulation cost, but contributes less energy and more fiber than Maize.",
+        'DORB (Deoiled Rice Bran)': "A low-cost filler that provides fiber and some protein. Highly used for cost control but limited due to high fiber.",
+        'Soybean Meal (44%)': "The gold standard protein source (high Lysine). Essential for building muscle/eggs.",
+        'Mustard Seed Meal (32%)': "A low-cost protein substitute. Must be limited due to anti-nutritional factors (glucosinolates/tannins) and poor amino acid balance.",
+        'Fish Meal (50%)': "Excellent source of highly digestible protein, essential amino acids, and high Non-Phytin Phosphorus (NPP). Used to boost performance, especially in Starter phases.",
+        'DCP/Bone Meal': "Direct supplement for Calcium and Non-Phytin Phosphorus (NPP). Critical for bone growth and eggshell strength.",
+        'Calcite/Limestone': "Pure Calcium supplement. Essential in Layer diets for maximum eggshell quality.",
+        'Oil (Vegetable/Soy/Palm)': "Highly concentrated energy source (ME). Used to meet high ME requirements, crucial for Broiler performance.",
+        'DL-Methionine': "Synthetic essential amino acid. Used to meet the MetCys requirement without over-supplying expensive protein.",
+        'L-Lysine': "Synthetic essential amino acid. Used to balance the Lysine/MetCys ratio, key for growth and feed efficiency.",
+        'Vitamin/Mineral Premix': "Supplies all required micro-nutrients (Vitamins A, D3, E, B-complex, and Trace Minerals). Fixed cost/inclusion for safety.",
+    };
+
+    const NUTRIENT_RATIONALE = {
+        'ME': "Metabolizable Energy (kcal/kg). Directly fuels growth and production. Higher ME means the bird eats less feed to grow the same amount.",
+        'CP': "Crude Protein (%). Total nitrogen content. Needs to be sufficient, but excess CP is wasteful and increases nitrogen excretion (wet litter).",
+        'MP': "Metabolizable Protein (%). A more accurate measure of the effective protein available for metabolism, better than just CP.",
+        'Lys': "Lysine (%). The first limiting amino acid for growth. Directly impacts muscle development and feed efficiency (FCR).",
+        'MetCys': "Methionine + Cystine (%). The second limiting amino acid. Critical for feathering, protein synthesis, and general health.",
+        'Ca': "Calcium (%). Essential for bone strength (all birds) and eggshell formation (Layers). Needs to be tightly controlled.",
+        'NPP': "Non-Phytin Phosphorus (%). The portion of Phosphorus the bird can actually digest. Critical for skeletal integrity.",
+    };
+
+
+    // 1. Ingredient Database (A simplified set for Bangladesh, based on Indian data)
+    const INGREDIENTS = {
+        'Maize': { ME: 3312, CP: 8.6, MP: 6.88, Lys: 0.26, MetCys: 0.44, Ca: 0.02, NPP: 0.04, defaultCost: 35.00, Min: 35, Max: 65 },
+        'Rice Broken/Kura': { ME: 2648, CP: 7.3, MP: 5.84, Lys: 0.20, MetCys: 0.33, Ca: 0.04, NPP: 0.04, defaultCost: 28.00, Min: 0, Max: 20 },
+        'DORB (Deoiled Rice Bran)': { ME: 1805, CP: 13.0, MP: 10.40, Lys: 0.44, MetCys: 0.70, Ca: 1.19, NPP: 0.18, defaultCost: 20.00, Min: 0, Max: 10 },
+        'Soybean Meal (44%)': { ME: 2205, CP: 44.0, MP: 35.20, Lys: 2.66, MetCys: 1.21, Ca: 0.29, NPP: 0.26, defaultCost: 65.00, Min: 15, Max: 35 },
+        'Mustard Seed Meal (32%)': { ME: 1672, CP: 31.7, MP: 25.36, Lys: 0.73, MetCys: 1.32, Ca: 0.58, NPP: 0.26, defaultCost: 40.00, Min: 0, Max: 8 },
+        'Fish Meal (50%)': { ME: 2100, CP: 52.0, MP: 41.60, Lys: 3.18, MetCys: 1.63, Ca: 7.91, NPP: 3.92, defaultCost: 80.00, Min: 0, Max: 10 },
+        'DCP/Bone Meal': { ME: 0, CP: 0.0, MP: 0.00, Lys: 0.00, MetCys: 0.00, Ca: 22.0, NPP: 18.0, defaultCost: 95.00, Min: 1.5, Max: 3 },
+        'Calcite/Limestone': { ME: 0, CP: 0.0, MP: 0.00, Lys: 0.00, MetCys: 0.00, Ca: 38.0, NPP: 0.00, defaultCost: 5.00, Min: 0.5, Max: 10 },
+        'Oil (Vegetable/Soy/Palm)': { ME: 7904, CP: 0.0, MP: 0.00, Lys: 0.00, MetCys: 0.00, Ca: 0.00, NPP: 0.00, defaultCost: 110.00, Min: 1, Max: 6 },
+        'DL-Methionine': { ME: 0, CP: 0.0, MP: 0.00, Lys: 0.00, MetCys: 99.0, Ca: 0.00, NPP: 0.00, defaultCost: 550.00, Min: 0, Max: 0.3 },
+        'L-Lysine': { ME: 0, CP: 0.0, MP: 0.00, Lys: 99.0, MetCys: 0.00, Ca: 0.00, NPP: 0.00, defaultCost: 350.00, Min: 0, Max: 0.3 },
+        'Vitamin/Mineral Premix': { ME: 0, CP: 0.0, MP: 0.00, Lys: 0.00, MetCys: 0.00, Ca: 0.00, NPP: 0.00, defaultCost: 150.00, Min: 0.5, Max: 1.5 },
+    };
+    
+    // 4. Price History Data (Simulated BDT/kg)
+    const PRICE_HISTORY = {
+        'Maize': [37.50, 36.80, 35.90, 35.00], // Last 4 months, current is last one
+        'Soybean Meal (44%)': [72.00, 68.50, 66.50, 65.00],
+        'DORB (Deoiled Rice Bran)': [21.00, 20.80, 20.50, 20.00]
+    };
+
+    // 2. Nutrient Requirements (Constraints)
+    const REQUIREMENTS = {
+        'broiler': {
+            name: 'Broiler',
+            phases: {
+                'starter': { name: 'Starter (0-3 Wks)', oil: { Min: 2, Max: 6 }, ME: { Min: 2800, Max: 2900, Unit: 'kcal/kg' }, CP: { Min: 20.0, Max: 22.0, Unit: '%' }, MP: { Min: 16.0, Max: null, Unit: '%' }, Lys: { Min: 1.10, Max: null, Unit: '%' }, MetCys: { Min: 0.84, Max: null, Unit: '%' }, Ca: { Min: 0.90, Max: 1.10, Unit: '%' }, NPP: { Min: 0.45, Max: 0.55, Unit: '%' } },
+                'grower': { name: 'Grower (4-5 Wks)', oil: { Min: 2, Max: 6 }, ME: { Min: 2850, Max: 2950, Unit: 'kcal/kg' }, CP: { Min: 19.0, Max: 21.0, Unit: '%' }, MP: { Min: 15.2, Max: null, Unit: '%' }, Lys: { Min: 1.05, Max: null, Unit: '%' }, MetCys: { Min: 0.81, Max: null, Unit: '%' }, Ca: { Min: 0.87, Max: 1.07, Unit: '%' }, NPP: { Min: 0.43, Max: 0.53, Unit: '%' } },
+                'finisher': { name: 'Finisher (6-7 Wks)', oil: { Min: 1, Max: 6 }, ME: { Min: 2900, Max: 3000, Unit: 'kcal/kg' }, CP: { Min: 18.0, Max: 20.0, Unit: '%' }, MP: { Min: 14.4, Max: null, Unit: '%' }, Lys: { Min: 1.00, Max: null, Unit: '%' }, MetCys: { Min: 0.78, Max: null, Unit: '%' }, Ca: { Min: 0.84, Max: 1.04, Unit: '%' }, NPP: { Min: 0.42, Max: 0.52, Unit: '%' } },
+            }
+        },
+        'layer': {
+            name: 'Layer',
+            phases: {
+                'starter': { name: 'Starter (0-6 Wks)', oil: { Min: 1, Max: 4 }, ME: { Min: 2700, Max: 2800, Unit: 'kcal/kg' }, CP: { Min: 18.0, Max: 19.0, Unit: '%' }, MP: { Min: 14.4, Max: null, Unit: '%' }, Lys: { Min: 0.95, Max: null, Unit: '%' }, MetCys: { Min: 0.80, Max: null, Unit: '%' }, Ca: { Min: 0.90, Max: 1.10, Unit: '%' }, NPP: { Min: 0.45, Max: 0.55, Unit: '%' } },
+                'grower': { name: 'Grower (7-17 Wks)', oil: { Min: 0.5, Max: 3 }, ME: { Min: 2700, Max: 2800, Unit: 'kcal/kg' }, CP: { Min: 15.0, Max: 16.0, Unit: '%' }, MP: { Min: 12.0, Max: null, Unit: '%' }, Lys: { Min: 0.60, Max: null, Unit: '%' }, MetCys: { Min: 0.40, Max: null, Unit: '%' }, Ca: { Min: 0.70, Max: 0.90, Unit: '%' }, NPP: { Min: 0.35, Max: 0.45, Unit: '%' } },
+                'pre-layer': { name: 'Pre-Layer (18-20 Wks)', oil: { Min: 0.5, Max: 3 }, ME: { Min: 2600, Max: 2700, Unit: 'kcal/kg' }, CP: { Min: 16.0, Max: 17.0, Unit: '%' }, MP: { Min: 12.8, Max: null, Unit: '%' }, Lys: { Min: 0.70, Max: null, Unit: '%' }, MetCys: { Min: 0.45, Max: null, Unit: '%' }, Ca: { Min: 2.00, Max: 2.50, Unit: '%' }, NPP: { Min: 0.35, Max: 0.45, Unit: '%' } },
+                'layer': { name: 'Layer (21+ Wks)', oil: { Min: 0.5, Max: 4 }, ME: { Min: 2500, Max: 2600, Unit: 'kcal/kg' }, CP: { Min: 15.0, Max: 16.0, Unit: '%' }, MP: { Min: 12.0, Max: null, Unit: '%' }, Lys: { Min: 0.75, Max: null, Unit: '%' }, MetCys: { Min: 0.50, Max: null, Unit: '%' }, Ca: { Min: 3.50, Max: 4.00, Unit: '%' }, NPP: { Min: 0.30, Max: 0.40, Unit: '%' } },
+            }
+        },
+        'sonali': {
+            name: 'Sonali/Dual',
+            phases: {
+                'starter': { name: 'Starter (0-6 Wks)', oil: { Min: 1, Max: 4 }, ME: { Min: 2750, Max: 2850, Unit: 'kcal/kg' }, CP: { Min: 18.5, Max: 20.5, Unit: '%' }, MP: { Min: 14.8, Max: null, Unit: '%' }, Lys: { Min: 1.00, Max: null, Unit: '%' }, MetCys: { Min: 0.75, Max: null, Unit: '%' }, Ca: { Min: 0.90, Max: 1.10, Unit: '%' }, NPP: { Min: 0.45, Max: 0.55, Unit: '%' } },
+                'grower': { name: 'Grower (7-18 Wks)', oil: { Min: 0.5, Max: 3 }, ME: { Min: 2650, Max: 2750, Unit: 'kcal/kg' }, CP: { Min: 17.0, Max: 18.0, Unit: '%' }, MP: { Min: 13.6, Max: null, Unit: '%' }, Lys: { Min: 0.85, Max: null, Unit: '%' }, MetCys: { Min: 0.60, Max: null, Unit: '%' }, Ca: { Min: 1.20, Max: 1.50, Unit: '%' }, NPP: { Min: 0.40, Max: 0.50, Unit: '%' } },
+                'pre-layer': { name: 'Pre-Layer (19-21 Wks)', oil: { Min: 0.5, Max: 3 }, ME: { Min: 2600, Max: 2700, Unit: 'kcal/kg' }, CP: { Min: 16.5, Max: 17.5, Unit: '%' }, MP: { Min: 13.2, Max: null, Unit: '%' }, Lys: { Min: 0.80, Max: null, Unit: '%' }, MetCys: { Min: 0.58, Max: null, Unit: '%' }, Ca: { Min: 2.20, Max: 2.70, Unit: '%' }, NPP: { Min: 0.38, Max: 0.48, Unit: '%' } },
+                'layer': { name: 'Layer (22+ Wks)', oil: { Min: 0.5, Max: 4 }, ME: { Min: 2550, Max: 2650, Unit: 'kcal/kg' }, CP: { Min: 16.0, Max: 17.0, Unit: '%' }, MP: { Min: 12.8, Max: null, Unit: '%' }, Lys: { Min: 0.80, Max: null, Unit: '%' }, MetCys: { Min: 0.55, Max: null, Unit: '%' }, Ca: { Min: 3.20, Max: 3.70, Unit: '%' }, NPP: { Min: 0.35, Max: 0.45, Unit: '%' } },
+            }
+        }
+    };
+
+    // 3. Mix Definitions (Hard-coded to simulate different LP strategies)
+    const MIX_STRATEGIES = {
+        'broiler': {
+            'starter': {
+                'cost': { 'Maize': 55.0, 'Rice Broken/Kura': 5.0, 'DORB (Deoiled Rice Bran)': 2.0, 'Soybean Meal (44%)': 30.0, 'Mustard Seed Meal (32%)': 0.0, 'Fish Meal (50%)': 2.0, 'DCP/Bone Meal': 1.5, 'Calcite/Limestone': 0.0, 'Oil (Vegetable/Soy/Palm)': 3.0, 'DL-Methionine': 0.15, 'L-Lysine': 0.05, 'Vitamin/Mineral Premix': 0.30 },
+                'balanced': { 'Maize': 53.0, 'Rice Broken/Kura': 3.0, 'DORB (Deoiled Rice Bran)': 0.0, 'Soybean Meal (44%)': 32.0, 'Mustard Seed Meal (32%)': 0.0, 'Fish Meal (50%)': 2.5, 'DCP/Bone Meal': 1.5, 'Calcite/Limestone': 0.0, 'Oil (Vegetable/Soy/Palm)': 3.5, 'DL-Methionine': 0.18, 'L-Lysine': 0.08, 'Vitamin/Mineral Premix': 0.30 },
+                'premium': { 'Maize': 50.0, 'Rice Broken/Kura': 0.0, 'DORB (Deoiled Rice Bran)': 0.0, 'Soybean Meal (44%)': 34.0, 'Mustard Seed Meal (32%)': 0.0, 'Fish Meal (50%)': 3.0, 'DCP/Bone Meal': 1.5, 'Calcite/Limestone': 0.0, 'Oil (Vegetable/Soy/Palm)': 5.0, 'DL-Methionine': 0.20, 'L-Lysine': 0.10, 'Vitamin/Mineral Premix': 0.30 },
+            },
+            'grower': {
+                'cost': { 'Maize': 60.0, 'Rice Broken/Kura': 7.0, 'DORB (Deoiled Rice Bran)': 3.0, 'Soybean Meal (44%)': 25.0, 'Mustard Seed Meal (32%)': 1.0, 'Fish Meal (50%)': 1.5, 'DCP/Bone Meal': 1.3, 'Calcite/Limestone': 0.0, 'Oil (Vegetable/Soy/Palm)': 2.8, 'DL-Methionine': 0.14, 'L-Lysine': 0.03, 'Vitamin/Mineral Premix': 0.30 },
+                'balanced': { 'Maize': 58.0, 'Rice Broken/Kura': 5.0, 'DORB (Deoiled Rice Bran)': 2.0, 'Soybean Meal (44%)': 27.0, 'Mustard Seed Meal (32%)': 0.0, 'Fish Meal (50%)': 2.0, 'DCP/Bone Meal': 1.0, 'Calcite/Limestone': 0.0, 'Oil (Vegetable/Soy/Palm)': 3.5, 'DL-Methionine': 0.16, 'L-Lysine': 0.05, 'Vitamin/Mineral Premix': 0.30 },
+                'premium': { 'Maize': 55.0, 'Rice Broken/Kura': 2.0, 'DORB (Deoiled Rice Bran)': 0.0, 'Soybean Meal (44%)': 30.0, 'Mustard Seed Meal (32%)': 0.0, 'Fish Meal (50%)': 3.0, 'DCP/Bone Meal': 1.0, 'Calcite/Limestone': 0.0, 'Oil (Vegetable/Soy/Palm)': 5.0, 'DL-Methionine': 0.18, 'L-Lysine': 0.08, 'Vitamin/Mineral Premix': 0.30 },
+            },
+            'finisher': {
+                'cost': { 'Maize': 62.0, 'Rice Broken/Kura': 8.0, 'DORB (Deoiled Rice Bran)': 3.0, 'Soybean Meal (44%)': 22.0, 'Mustard Seed Meal (32%)': 0.0, 'Fish Meal (50%)': 1.0, 'DCP/Bone Meal': 1.0, 'Calcite/Limestone': 0.0, 'Oil (Vegetable/Soy/Palm)': 2.5, 'DL-Methionine': 0.12, 'L-Lysine': 0.05, 'Vitamin/Mineral Premix': 0.30 },
+                'balanced': { 'Maize': 60.0, 'Rice Broken/Kura': 6.0, 'DORB (Deoiled Rice Bran)': 2.0, 'Soybean Meal (44%)': 24.0, 'Mustard Seed Meal (32%)': 0.0, 'Fish Meal (50%)': 1.5, 'DCP/Bone Meal': 1.0, 'Calcite/Limestone': 0.0, 'Oil (Vegetable/Soy/Palm)': 3.0, 'DL-Methionine': 0.14, 'L-Lysine': 0.03, 'Vitamin/Mineral Premix': 0.30 },
+                'premium': { 'Maize': 58.0, 'Rice Broken/Kura': 3.0, 'DORB (Deoiled Rice Bran)': 0.0, 'Soybean Meal (44%)': 27.0, 'Mustard Seed Meal (32%)': 0.0, 'Fish Meal (50%)': 2.0, 'DCP/Bone Meal': 1.0, 'Calcite/Limestone': 0.0, 'Oil (Vegetable/Soy/Palm)': 5.0, 'DL-Methionine': 0.16, 'L-Lysine': 0.05, 'Vitamin/Mineral Premix': 0.30 },
+            }
+        },
+        'layer': {
+            'starter': {
+                'cost': { 'Maize': 50.0, 'Rice Broken/Kura': 15.0, 'DORB (Deoiled Rice Bran)': 5.0, 'Soybean Meal (44%)': 20.0, 'Mustard Seed Meal (32%)': 3.0, 'Fish Meal (50%)': 3.0, 'DCP/Bone Meal': 1.5, 'Calcite/Limestone': 0.5, 'Oil (Vegetable/Soy/Palm)': 1.5, 'DL-Methionine': 0.10, 'L-Lysine': 0.05, 'Vitamin/Mineral Premix': 0.35 },
+                'balanced': { 'Maize': 48.0, 'Rice Broken/Kura': 12.0, 'DORB (Deoiled Rice Bran)': 3.0, 'Soybean Meal (44%)': 22.0, 'Mustard Seed Meal (32%)': 2.0, 'Fish Meal (50%)': 3.5, 'DCP/Bone Meal': 1.5, 'Calcite/Limestone': 0.5, 'Oil (Vegetable/Soy/Palm)': 2.0, 'DL-Methionine': 0.12, 'L-Lysine': 0.07, 'Vitamin/Mineral Premix': 0.35 },
+                'premium': { 'Maize': 45.0, 'Rice Broken/Kura': 10.0, 'DORB (Deoiled Rice Bran)': 0.0, 'Soybean Meal (44%)': 25.0, 'Mustard Seed Meal (32%)': 0.0, 'Fish Meal (50%)': 4.0, 'DCP/Bone Meal': 1.5, 'Calcite/Limestone': 0.5, 'Oil (Vegetable/Soy/Palm)': 3.0, 'DL-Methionine': 0.14, 'L-Lysine': 0.10, 'Vitamin/Mineral Premix': 0.35 },
+            },
+            'grower': {
+                'cost': { 'Maize': 55.0, 'Rice Broken/Kura': 18.0, 'DORB (Deoiled Rice Bran)': 6.0, 'Soybean Meal (44%)': 12.0, 'Mustard Seed Meal (32%)': 5.0, 'Fish Meal (50%)': 1.0, 'DCP/Bone Meal': 1.0, 'Calcite/Limestone': 0.5, 'Oil (Vegetable/Soy/Palm)': 0.5, 'DL-Methionine': 0.05, 'L-Lysine': 0.0, 'Vitamin/Mineral Premix': 1.0 },
+                'balanced': { 'Maize': 52.0, 'Rice Broken/Kura': 15.0, 'DORB (Deoiled Rice Bran)': 4.0, 'Soybean Meal (44%)': 15.0, 'Mustard Seed Meal (32%)': 3.0, 'Fish Meal (50%)': 1.5, 'DCP/Bone Meal': 1.0, 'Calcite/Limestone': 0.5, 'Oil (Vegetable/Soy/Palm)': 1.0, 'DL-Methionine': 0.08, 'L-Lysine': 0.0, 'Vitamin/Mineral Premix': 1.0 },
+                'premium': { 'Maize': 50.0, 'Rice Broken/Kura': 10.0, 'DORB (Deoiled Rice Bran)': 0.0, 'Soybean Meal (44%)': 20.0, 'Mustard Seed Meal (32%)': 0.0, 'Fish Meal (50%)': 2.0, 'DCP/Bone Meal': 1.0, 'Calcite/Limestone': 0.5, 'Oil (Vegetable/Soy/Palm)': 2.0, 'DL-Methionine': 0.10, 'L-Lysine': 0.0, 'Vitamin/Mineral Premix': 1.0 },
+            },
+            'pre-layer': {
+                'cost': { 'Maize': 50.0, 'Rice Broken/Kura': 16.0, 'DORB (Deoiled Rice Bran)': 6.0, 'Soybean Meal (44%)': 15.0, 'Mustard Seed Meal (32%)': 4.0, 'Fish Meal (50%)': 2.0, 'DCP/Bone Meal': 2.0, 'Calcite/Limestone': 3.0, 'Oil (Vegetable/Soy/Palm)': 1.0, 'DL-Methionine': 0.05, 'L-Lysine': 0.0, 'Vitamin/Mineral Premix': 1.0 },
+                'balanced': { 'Maize': 48.0, 'Rice Broken/Kura': 14.0, 'DORB (Deoiled Rice Bran)': 4.0, 'Soybean Meal (44%)': 17.0, 'Mustard Seed Meal (32%)': 3.0, 'Fish Meal (50%)': 2.5, 'DCP/Bone Meal': 2.0, 'Calcite/Limestone': 3.5, 'Oil (Vegetable/Soy/Palm)': 1.5, 'DL-Methionine': 0.07, 'L-Lysine': 0.0, 'Vitamin/Mineral Premix': 1.0 },
+                'premium': { 'Maize': 45.0, 'Rice Broken/Kura': 10.0, 'DORB (Deoiled Rice Bran)': 2.0, 'Soybean Meal (44%)': 20.0, 'Mustard Seed Meal (32%)': 1.0, 'Fish Meal (50%)': 3.0, 'DCP/Bone Meal': 2.0, 'Calcite/Limestone': 4.0, 'Oil (Vegetable/Soy/Palm)': 2.0, 'DL-Methionine': 0.10, 'L-Lysine': 0.0, 'Vitamin/Mineral Premix': 1.0 },
+            },
+            'layer': {
+                'cost': { 'Maize': 50.0, 'Rice Broken/Kura': 15.0, 'DORB (Deoiled Rice Bran)': 5.0, 'Soybean Meal (44%)': 12.0, 'Mustard Seed Meal (32%)': 3.0, 'Fish Meal (50%)': 5.0, 'DCP/Bone Meal': 1.5, 'Calcite/Limestone': 7.0, 'Oil (Vegetable/Soy/Palm)': 0.5, 'DL-Methionine': 0.05, 'L-Lysine': 0.0, 'Vitamin/Mineral Premix': 1.0 },
+                'balanced': { 'Maize': 48.0, 'Rice Broken/Kura': 12.0, 'DORB (Deoiled Rice Bran)': 3.0, 'Soybean Meal (44%)': 15.0, 'Mustard Seed Meal (32%)': 2.0, 'Fish Meal (50%)': 5.5, 'DCP/Bone Meal': 1.5, 'Calcite/Limestone': 7.5, 'Oil (Vegetable/Soy/Palm)': 1.0, 'DL-Methionine': 0.07, 'L-Lysine': 0.0, 'Vitamin/Mineral Premix': 1.0 },
+                'premium': { 'Maize': 45.0, 'Rice Broken/Kura': 8.0, 'DORB (Deoiled Rice Bran)': 0.0, 'Soybean Meal (44%)': 18.0, 'Mustard Seed Meal (32%)': 1.0, 'Fish Meal (50%)': 6.0, 'DCP/Bone Meal': 1.5, 'Calcite/Limestone': 8.5, 'Oil (Vegetable/Soy/Palm)': 2.0, 'DL-Methionine': 0.10, 'L-Lysine': 0.0, 'Vitamin/Mineral Premix': 1.0 },
+            }
+        },
+        'sonali': {
+            'starter': {
+                'cost': { 'Maize': 54.0, 'Rice Broken/Kura': 10.0, 'DORB (Deoiled Rice Bran)': 4.0, 'Soybean Meal (44%)': 22.0, 'Mustard Seed Meal (32%)': 2.0, 'Fish Meal (50%)': 3.0, 'DCP/Bone Meal': 1.5, 'Calcite/Limestone': 0.5, 'Oil (Vegetable/Soy/Palm)': 2.0, 'DL-Methionine': 0.10, 'L-Lysine': 0.05, 'Vitamin/Mineral Premix': 0.85 },
+                'balanced': { 'Maize': 52.0, 'Rice Broken/Kura': 8.0, 'DORB (Deoiled Rice Bran)': 2.0, 'Soybean Meal (44%)': 24.0, 'Mustard Seed Meal (32%)': 1.0, 'Fish Meal (50%)': 3.5, 'DCP/Bone Meal': 1.5, 'Calcite/Limestone': 0.5, 'Oil (Vegetable/Soy/Palm)': 2.5, 'DL-Methionine': 0.12, 'L-Lysine': 0.07, 'Vitamin/Mineral Premix': 0.85 },
+                'premium': { 'Maize': 50.0, 'Rice Broken/Kura': 5.0, 'DORB (Deoiled Rice Bran)': 0.0, 'Soybean Meal (44%)': 27.0, 'Mustard Seed Meal (32%)': 0.0, 'Fish Meal (50%)': 4.0, 'DCP/Bone Meal': 1.5, 'Calcite/Limestone': 0.5, 'Oil (Vegetable/Soy/Palm)': 3.5, 'DL-Methionine': 0.14, 'L-Lysine': 0.10, 'Vitamin/Mineral Premix': 0.85 },
+            },
+            'grower': {
+                'cost': { 'Maize': 58.0, 'Rice Broken/Kura': 15.0, 'DORB (Deoiled Rice Bran)': 5.0, 'Soybean Meal (44%)': 18.0, 'Mustard Seed Meal (32%)': 2.0, 'Fish Meal (50%)': 1.0, 'DCP/Bone Meal': 1.5, 'Calcite/Limestone': 1.5, 'Oil (Vegetable/Soy/Palm)': 1.0, 'DL-Methionine': 0.08, 'L-Lysine': 0.0, 'Vitamin/Mineral Premix': 0.92 },
+                'balanced': { 'Maize': 55.0, 'Rice Broken/Kura': 12.0, 'DORB (Deoiled Rice Bran)': 3.0, 'Soybean Meal (44%)': 20.0, 'Mustard Seed Meal (32%)': 1.0, 'Fish Meal (50%)': 1.5, 'DCP/Bone Meal': 1.5, 'Calcite/Limestone': 1.5, 'Oil (Vegetable/Soy/Palm)': 1.5, 'DL-Methionine': 0.10, 'L-Lysine': 0.0, 'Vitamin/Mineral Premix': 0.92 },
+                'premium': { 'Maize': 52.0, 'Rice Broken/Kura': 8.0, 'DORB (Deoiled Rice Bran)': 0.0, 'Soybean Meal (44%)': 24.0, 'Mustard Seed Meal (32%)': 0.0, 'Fish Meal (50%)': 2.0, 'DCP/Bone Meal': 1.5, 'Calcite/Limestone': 1.5, 'Oil (Vegetable/Soy/Palm)': 2.5, 'DL-Methionine': 0.12, 'L-Lysine': 0.0, 'Vitamin/Mineral Premix': 0.92 },
+            },
+            'pre-layer': {
+                'cost': { 'Maize': 54.0, 'Rice Broken/Kura': 12.0, 'DORB (Deoiled Rice Bran)': 5.0, 'Soybean Meal (44%)': 17.0, 'Mustard Seed Meal (32%)': 3.0, 'Fish Meal (50%)': 2.0, 'DCP/Bone Meal': 2.0, 'Calcite/Limestone': 2.5, 'Oil (Vegetable/Soy/Palm)': 1.0, 'DL-Methionine': 0.08, 'L-Lysine': 0.0, 'Vitamin/Mineral Premix': 1.0 },
+                'balanced': { 'Maize': 52.0, 'Rice Broken/Kura': 10.0, 'DORB (Deoiled Rice Bran)': 3.0, 'Soybean Meal (44%)': 19.0, 'Mustard Seed Meal (32%)': 2.0, 'Fish Meal (50%)': 2.5, 'DCP/Bone Meal': 2.0, 'Calcite/Limestone': 3.0, 'Oil (Vegetable/Soy/Palm)': 1.5, 'DL-Methionine': 0.10, 'L-Lysine': 0.0, 'Vitamin/Mineral Premix': 1.0 },
+                'premium': { 'Maize': 50.0, 'Rice Broken/Kura': 8.0, 'DORB (Deoiled Rice Bran)': 0.0, 'Soybean Meal (44%)': 22.0, 'Mustard Seed Meal (32%)': 0.0, 'Fish Meal (50%)': 3.0, 'DCP/Bone Meal': 2.0, 'Calcite/Limestone': 3.5, 'Oil (Vegetable/Soy/Palm)': 2.0, 'DL-Methionine': 0.12, 'L-Lysine': 0.0, 'Vitamin/Mineral Premix': 1.0 },
+            },
+            'layer': {
+                'cost': { 'Maize': 55.0, 'Rice Broken/Kura': 12.0, 'DORB (Deoiled Rice Bran)': 5.0, 'Soybean Meal (44%)': 16.0, 'Mustard Seed Meal (32%)': 3.0, 'Fish Meal (50%)': 3.0, 'DCP/Bone Meal': 1.5, 'Calcite/Limestone': 3.0, 'Oil (Vegetable/Soy/Palm)': 0.5, 'DL-Methionine': 0.05, 'L-Lysine': 0.0, 'Vitamin/Mineral Premix': 0.95 },
+                'balanced': { 'Maize': 52.0, 'Rice Broken/Kura': 10.0, 'DORB (Deoiled Rice Bran)': 3.0, 'Soybean Meal (44%)': 18.0, 'Mustard Seed Meal (32%)': 2.0, 'Fish Meal (50%)': 3.5, 'DCP/Bone Meal': 1.5, 'Calcite/Limestone': 3.5, 'Oil (Vegetable/Soy/Palm)': 1.0, 'DL-Methionine': 0.07, 'L-Lysine': 0.0, 'Vitamin/Mineral Premix': 0.95 },
+                'premium': { 'Maize': 50.0, 'Rice Broken/Kura': 8.0, 'DORB (Deoiled Rice Bran)': 0.0, 'Soybean Meal (44%)': 20.0, 'Mustard Seed Meal (32%)': 1.0, 'Fish Meal (50%)': 4.0, 'DCP/Bone Meal': 1.5, 'Calcite/Limestone': 4.0, 'Oil (Vegetable/Soy/Palm)': 1.5, 'DL-Methionine': 0.10, 'L-Lysine': 0.0, 'Vitamin/Mineral Premix': 0.95 },
+            }
+        }
+    };
+    
+    // State variables
+    let currentBird = 'broiler';
+    let currentPhase = 'starter'; 
+    let currentStrategy = 'cost'; 
+    let ingredientCosts = {};
+    let currentMix = {};
+
+    // --- Core Logic Functions (Simplified LP Simulation) ---
+
+    function solveLP(birdType, phaseId, strategy, costs, ingredients, requirements) {
+        const reqs = requirements[birdType].phases[phaseId];
+        let mix = {};
+        let totalCost = 0;
+        let totalWeight = 0;
+        let achieved = {};
+        
+        // 1. Initialize Achieved Levels to zero
+        Object.keys(reqs).forEach(n => achieved[n] = 0);
+        
+        // 2. Select the mix based on strategy
+        const baseMix = MIX_STRATEGIES[birdType][phaseId][strategy];
+        if (!baseMix) throw new Error(`Mix not defined for ${birdType} - ${phaseId} - ${strategy}`);
+        Object.assign(mix, baseMix);
+
+        // 3. Adjust the main filler (Maize) to ensure total weight is 100
+        const currentSum = Object.values(mix).reduce((sum, val) => sum + val, 0);
+        const maizeAdjustment = 100.0 - currentSum;
+        mix['Maize'] += maizeAdjustment;
+
+
+        // 4. Calculate Final Achieved Levels and Total Cost
+        for (const name in mix) {
+            const percentage = mix[name];
+            totalWeight += percentage;
+            totalCost += percentage * costs[name];
+            
+            // Calculate achieved nutrient levels
+            for (const nutrientKey in ingredients[name]) {
+                if (reqs[nutrientKey]) { // Only track nutrients relevant to requirements
+                    const nutrientValue = ingredients[name][nutrientKey] || 0;
+                    achieved[nutrientKey] = (achieved[nutrientKey] || 0) + (percentage / 100.0) * nutrientValue;
+                }
+            }
+        }
+        
+        return {
+            mix: mix,
+            cost: totalCost / totalWeight, // Cost per kg
+            achieved: achieved,
+            totalWeight: totalWeight
+        };
+    }
+    
+    function runSensitivityAnalysis(mix, costs, ingredients) {
+        const results = [];
+        let totalImpact = 0;
+        
+        Object.keys(mix).forEach(name => {
+            const percentage = mix[name];
+            if (percentage > 0.1) { 
+                const currentCost = costs[name];
+                
+                const costImpact = (percentage / 100) * (currentCost * 0.10);
+                totalImpact += costImpact;
+                
+                results.push({
+                    name: name,
+                    mixPercentage: percentage,
+                    costImpact: costImpact 
+                });
+            }
+        });
+
+        results.sort((a, b) => b.costImpact - a.costImpact);
+
+        const solution = solveLP(currentBird, currentPhase, currentStrategy, costs, ingredients, REQUIREMENTS);
+        const baseCost = solution.cost;
+
+        return {
+            baseCost: baseCost,
+            worstCase: baseCost + totalImpact,
+            bestCase: baseCost - totalImpact,
+            topImpact: results.slice(0, 4) 
+        };
+    }
+
+    // --- UI Rendering Functions ---
+
+    function renderIngredientInputs() {
+        const container = document.getElementById('ingredient-costs');
+        container.innerHTML = '';
+        
+        const currentPhaseData = REQUIREMENTS[currentBird].phases[currentPhase];
+        
+        INGREDIENTS['Oil (Vegetable/Soy/Palm)'].Min = currentPhaseData.oil.Min;
+        INGREDIENTS['Oil (Vegetable/Soy/Palm)'].Max = currentPhaseData.oil.Max;
+
+        Object.keys(INGREDIENTS).forEach(name => {
+            const ingredient = INGREDIENTS[name];
+            const Min = ingredient.Min.toFixed(1);
+            const Max = ingredient.Max.toFixed(1);
+            const defaultCost = ingredient.defaultCost;
+            
+            const div = document.createElement('div');
+            div.className = 'flex justify-between items-center text-sm';
+
+            const inputId = `${name.replace(/\s/g, '-')}-cost`;
+            
+            // Check for Price Alert
+            let alertHtml = '';
+            const history = PRICE_HISTORY[name];
+            if (history) {
+                const avgPrice = history.slice(0, 3).reduce((sum, p) => sum + p, 0) / 3;
+                const currentInputPrice = ingredientCosts[name] !== undefined ? ingredientCosts[name] : defaultCost;
+                
+                // Alert if current price is 5% below 3-month average
+                if (currentInputPrice < avgPrice * 0.95) {
+                    alertHtml = `<span class="alert-indicator">BUY ALERT (Avg: ${avgPrice.toFixed(2)})</span>`;
+                }
+            }
+
+            div.innerHTML = `
+                <label for="${inputId}" class="w-1/2 font-medium text-gray-600" title="${INGREDIENT_RATIONALE[name] || ''}">${name} (${Min}-${Max}%)</label>
+                <div class="w-1/2 flex items-center justify-end space-x-2">
+                    ${alertHtml}
+                    <span class="text-gray-500">BDT</span>
+                    <input type="number" id="${inputId}" 
+                           value="${ingredientCosts[name] !== undefined ? ingredientCosts[name].toFixed(2) : defaultCost.toFixed(2)}" 
+                           data-default-cost="${defaultCost.toFixed(2)}"
+                           step="0.01" min="0"
+                           class="input-cost p-1 border border-gray-300 rounded-md focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                    <span id="${inputId}-icon" class="w-5 h-5 flex items-center justify-center rounded-full text-xs" title="Price Check"></span>
+                </div>
+            `;
+            container.appendChild(div);
+            
+            if (ingredientCosts[name] === undefined) {
+                 ingredientCosts[name] = defaultCost;
+            }
+           
+            const inputElement = document.getElementById(inputId);
+            inputElement.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                ingredientCosts[name] = value || 0;
+                checkPriceDeviation(e.target, defaultCost);
+            });
+            checkPriceDeviation(inputElement, defaultCost);
+        });
+    }
+
+    function checkPriceDeviation(inputElement, defaultCost) {
+        const currentPrice = parseFloat(inputElement.value);
+        const iconElement = document.getElementById(`${inputElement.id}-icon`);
+        
+        if (isNaN(currentPrice) || currentPrice <= 0) {
+            iconElement.innerHTML = '';
+            iconElement.className = 'w-5 h-5';
+            return;
+        }
+
+        const deviation = Math.abs(currentPrice - defaultCost) / defaultCost;
+        
+        if (deviation > 0.15) { 
+            if (currentPrice > defaultCost) {
+                iconElement.innerHTML = '&#9650;'; 
+                iconElement.className = 'w-5 h-5 flex items-center justify-center rounded-full text-xs text-white bg-red-500';
+                iconElement.title = `High Price! Default: ${defaultCost.toFixed(2)}`;
+            } else {
+                iconElement.innerHTML = '&#9660;'; 
+                iconElement.className = 'w-5 h-5 flex items-center justify-center rounded-full text-xs text-white bg-green-500';
+                iconElement.title = `Low Price! Default: ${defaultCost.toFixed(2)}`;
+            }
+        } else {
+            iconElement.innerHTML = '&#10003;';
+            iconElement.className = 'w-5 h-5 flex items-center justify-center rounded-full text-xs text-white bg-gray-400';
+            iconElement.title = `Price near market average: ${defaultCost.toFixed(2)}`;
+        }
+    }
+
+
+    function renderMixTable(mix, ingredients) {
+        const body = document.getElementById('mix-table-body');
+        body.innerHTML = '';
+        
+        let totalWeight = 0;
+
+        Object.keys(mix).forEach(name => {
+            const percentage = mix[name];
+            const ingredient = ingredients[name];
+            totalWeight += percentage;
+
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50';
+            row.innerHTML = `
+                <td class="px-3 py-2 whitespace-nowrap text-gray-900">${name}</td>
+                <td class="px-3 py-2 whitespace-nowrap text-right font-mono">${percentage.toFixed(2)}</td>
+                <td class="px-3 py-2 whitespace-nowrap text-right text-gray-500 text-xs">${ingredient.Min.toFixed(1)}-${ingredient.Max.toFixed(1)}%</td>
+            `;
+            body.appendChild(row);
+        });
+
+        document.getElementById('total-weight').textContent = totalWeight.toFixed(2);
+    }
+
+    function renderNutrientCheck(achieved, requirements) {
+        const body = document.getElementById('nutrient-check-body');
+        body.innerHTML = '';
+        const reqs = requirements[currentBird].phases[currentPhase];
+        
+        const nutrientOrder = ['ME', 'CP', 'MP', 'Lys', 'MetCys', 'Ca', 'NPP'];
+
+        // FIX: Ensure the target element exists before setting textContent
+        const phaseNameElement = document.getElementById('current-phase-name');
+        if (phaseNameElement) {
+             phaseNameElement.textContent = reqs.name;
+        }
+
+
+        nutrientOrder.forEach(key => {
+            const req = reqs[key];
+            const achievedVal = achieved[key];
+            
+            if (!req) return; 
+
+            let statusClass = 'safe';
+            let statusText = 'OK';
+            
+            if (req.Min && achievedVal < req.Min) {
+                statusClass = 'danger';
+                statusText = 'LOW';
+            } else if (req.Max && achievedVal > req.Max) {
+                statusClass = 'risk';
+                statusText = 'HIGH';
+            } else if (req.Min && achievedVal >= req.Min && achievedVal < req.Min * 1.05 && key !== 'Ca' && key !== 'ME') {
+                statusClass = 'risk';
+                statusText = 'TIGHT';
+            }
+
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50';
+            row.innerHTML = `
+                <td class="px-3 py-2 whitespace-nowrap font-medium text-gray-900" title="${NUTRIENT_RATIONALE[key] || ''}">${key}</td>
+                <td class="px-3 py-2 whitespace-nowrap text-right text-gray-700">
+                    ${req.Min ? req.Min.toFixed(2) : '-'} ${req.Unit || '%'} ${req.Max ? ' (Max: ' + req.Max.toFixed(2) + ')' : ''}
+                </td>
+                <td class="px-3 py-2 whitespace-nowrap text-right achieved-cell w-full">
+                    <span class="${statusClass} block md:inline">${achievedVal.toFixed(key === 'ME' ? 0 : 2)} ${req.Unit || '%'}</span>
+                    <span class="ml-2 text-xs font-bold text-gray-500 block md:inline">(${statusText})</span>
+                </td>
+            `;
+            body.appendChild(row);
+        });
+    }
+
+    function renderRecommendation(cost) {
+        const efficiencyDiv = document.getElementById('cost-efficiency');
+        const totalCostSpan = document.getElementById('total-cost');
+        
+        totalCostSpan.textContent = cost.toFixed(2);
+        
+        let strategyName = document.getElementById('strategy-select').options[document.getElementById('strategy-select').selectedIndex].text;
+        
+        let message = `The **${strategyName}** ration is calculated at **${cost.toFixed(2)} BDT/kg** for the current phase.`;
+        
+        if (currentStrategy === 'cost') {
+             message += ` This mix focuses on minimum nutrient compliance at the lowest possible cost.`;
+             efficiencyDiv.className = 'mt-1 text-green-700 font-medium';
+        } else if (currentStrategy === 'premium') {
+            message += ` This premium mix provides nutrient margins for maximum performance (e.g., better FCR, higher egg size).`;
+            efficiencyDiv.className = 'mt-1 text-blue-700 font-medium';
+        } else {
+            message += ` This balanced mix provides a good trade-off between cost and performance.`;
+            efficiencyDiv.className = 'mt-1 text-gray-700 font-medium';
+        }
+        
+        efficiencyDiv.innerHTML = message;
+    }
+    
+    function renderSensitivityAnalysis(saData) {
+        document.getElementById('sa-current-cost').textContent = saData.baseCost.toFixed(2);
+        document.getElementById('sa-worst-case').textContent = saData.worstCase.toFixed(2);
+        document.getElementById('sa-best-case').textContent = saData.bestCase.toFixed(2);
+
+        const body = document.getElementById('sa-impact-body');
+        body.innerHTML = '';
+
+        if (saData.topImpact.length === 0) {
+            body.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-gray-500">No major drivers found.</td></tr>';
+            return;
+        }
+
+        saData.topImpact.forEach(item => {
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50';
+            row.innerHTML = `
+                <td class="px-3 py-2 whitespace-nowrap text-gray-900 font-medium">${item.name}</td>
+                <td class="px-3 py-2 whitespace-nowrap text-right text-red-600 font-semibold">+${item.costImpact.toFixed(3)}</td>
+                <td class="px-3 py-2 whitespace-nowrap text-right text-gray-500">${item.mixPercentage.toFixed(1)}%</td>
+            `;
+            body.appendChild(row);
+        });
+    }
+
+    function renderPriceHistory() {
+        const historyDiv = document.getElementById('price-trends-chart');
+        let trendHtml = '';
+        let alertListHtml = '';
+        let alertsFound = false;
+        
+        const ingredientsToCheck = ['Maize', 'Soybean Meal (44%)', 'DORB (Deoiled Rice Bran)'];
+        const months = ['Current', 'Month -1', 'Month -2', 'Month -3'];
+        
+        ingredientsToCheck.forEach(name => {
+            const history = PRICE_HISTORY[name];
+            if (history && history.length === 4) {
+                const currentPrice = ingredientCosts[name];
+                const avgPrice = history.slice(0, 3).reduce((sum, p) => sum + p, 0) / 3;
+                const trend = history[3] - history[0]; // Current vs oldest
+                const trendText = trend > 0 ? `<span class="text-red-500 font-semibold">(+${trend.toFixed(2)}) ▲ Rising</span>` : 
+                                  trend < 0 ? `<span class="text-green-500 font-semibold">(${trend.toFixed(2)}) ▼ Falling</span>` : 
+                                              `<span class="text-gray-500">(Stable)</span>`;
+                
+                trendHtml += `<p class="font-medium flex justify-between">${name}: <span class="font-bold">${history[3].toFixed(2)} BDT</span> ${trendText}</p>`;
+                
+                // Check for Buy Alert (current price 5% below 3-month average)
+                if (currentPrice < avgPrice * 0.95) {
+                    alertListHtml += `<p class="font-bold text-orange-700 bg-yellow-100 p-2 rounded-lg"><span class="text-xl inline-block mr-1">&#9888;</span> **${name}**: ${currentPrice.toFixed(2)} is <span class="underline">5%+ below</span> Avg (${avgPrice.toFixed(2)}). **BUY!**</p>`;
+                    alertsFound = true;
+                }
+            }
+        });
+        
+        historyDiv.innerHTML = trendHtml;
+        document.getElementById('price-alerts').innerHTML = alertsFound ? alertListHtml : '<p class="text-gray-500 italic p-2">No critical price alerts active.</p>';
+
+        // Rerender inputs to show the visual alert flag next to the price
+        renderIngredientInputs();
+    }
+    
+    // The renderAdvancedInsights function was deleted as requested.
+
+    function populatePhaseDropdown(birdType) {
+        const select = document.getElementById('phase-select');
+        select.innerHTML = '';
+        const phases = REQUIREMENTS[birdType].phases;
+
+        let phaseOrder;
+        if (birdType === 'broiler') {
+            phaseOrder = ['starter', 'grower', 'finisher'];
+        } else { // layer and sonali
+            phaseOrder = ['starter', 'grower', 'pre-layer', 'layer'];
+        }
+        
+        phaseOrder.forEach(phaseId => {
+            if (phases[phaseId]) {
+                const option = document.createElement('option');
+                option.value = phaseId;
+                option.textContent = phases[phaseId].name;
+                select.appendChild(option);
+            }
+        });
+
+        const firstPhaseId = phaseOrder[0];
+        currentPhase = firstPhaseId;
+        select.value = firstPhaseId;
+    }
+
+    function populateSubstitutionDropdowns() {
+        const originalSelect = document.getElementById('sub-original');
+        const alternativeSelect = document.getElementById('sub-alternative');
+        
+        originalSelect.innerHTML = '';
+        alternativeSelect.innerHTML = '';
+
+        const proteinSources = ['Soybean Meal (44%)', 'Mustard Seed Meal (32%)', 'Fish Meal (50%)', 'DORB (Deoiled Rice Bran)'];
+        const energySources = ['Maize', 'Rice Broken/Kura'];
+        
+        // Populate "Replace Ingredient" with Protein/Energy sources
+        proteinSources.forEach(name => {
+            if (INGREDIENTS[name]) {
+                const option = new Option(name, name);
+                originalSelect.add(option);
+            }
+        });
+        energySources.forEach(name => {
+            if (INGREDIENTS[name]) {
+                const option = new Option(name, name);
+                originalSelect.add(option);
+            }
+        });
+
+        // Populate "With Alternative" with lower-cost or alternative Protein/Energy sources
+        const alternatives = ['Mustard Seed Meal (32%)', 'DORB (Deoiled Rice Bran)', 'Rice Broken/Kura', 'Soybean Meal (44%)'];
+        alternatives.forEach(name => {
+            if (INGREDIENTS[name]) {
+                const option = new Option(name, name);
+                alternativeSelect.add(option);
+            }
+        });
+
+        // Set initial values
+        originalSelect.value = 'Soybean Meal (44%)';
+        alternativeSelect.value = 'Mustard Seed Meal (32%)';
+    }
+    
+    // --- New Feature Functions ---
+
+    function calculateSubstitution() {
+        if (Object.keys(currentMix).length === 0) {
+            document.getElementById('substitution-output').innerHTML = '<p class="text-red-500 font-bold">Please run the initial formulation first!</p>';
+            return;
+        }
+
+        const originalName = document.getElementById('sub-original').value;
+        const alternativeName = document.getElementById('sub-alternative').value;
+        const percentage = parseFloat(document.getElementById('sub-percentage').value) || 0;
+
+        if (originalName === alternativeName || percentage === 0) {
+            document.getElementById('substitution-output').innerHTML = '<p class="text-red-500 font-bold">Please select different ingredients and a valid percentage.</p>';
+            return;
+        }
+
+        const currentCost = parseFloat(document.getElementById('total-cost').textContent);
+        const originalIngredient = INGREDIENTS[originalName];
+        const alternativeIngredient = INGREDIENTS[alternativeName];
+        
+        const originalCost = ingredientCosts[originalName];
+        const alternativeCost = ingredientCosts[alternativeName];
+
+        // 1. Calculate Cost Impact
+        const costDifference = alternativeCost - originalCost;
+        const mixPercentage = currentMix[originalName] || 0;
+        
+        // Cost change = (Cost difference of ingredient) * (percentage of substitution)
+        const absoluteSubstitutionPercent = percentage / 100.0;
+        const costImpactPerKg = costDifference * absoluteSubstitutionPercent;
+        const newCost = currentCost + costImpactPerKg;
+        
+        // 2. Calculate Nutrient Gaps (simplified check on Lys, MetCys, MP)
+        const reqs = REQUIREMENTS[currentBird].phases[currentPhase];
+        const nutrientCheckKeys = ['Lys', 'MetCys', 'MP'];
+        let nutrientGapsHtml = 'Major Gaps: ';
+        let hasGaps = false;
+
+        nutrientCheckKeys.forEach(key => {
+            const currentAchieved = currentMix[originalName] * (originalIngredient[key] / 100) + currentMix[alternativeName] * (alternativeIngredient[key] / 100);
+            
+            // Calculate the change in nutrient content from substituting the 'percentage' amount
+            const nutrientChange = (alternativeIngredient[key] - originalIngredient[key]) * absoluteSubstitutionPercent;
+            const finalAchieved = (currentMix[originalName] / 100) * originalIngredient[key] + (currentMix[alternativeName] / 100) * alternativeIngredient[key] + nutrientChange;
+            
+            const requiredMin = reqs[key].Min;
+            
+            if (requiredMin && (finalAchieved * 100) < requiredMin) {
+                nutrientGapsHtml += `<span class="text-red-600 font-bold">${key}: ${((finalAchieved * 100) - requiredMin).toFixed(2)}% Low!</span> `;
+                hasGaps = true;
+            } else if (requiredMin && (finalAchieved * 100) < requiredMin * 1.05) {
+                 nutrientGapsHtml += `<span class="text-yellow-600">${key}: Tight. </span> `;
+            }
+        });
+        
+        if (!hasGaps) {
+            nutrientGapsHtml += '<span class="text-green-600">None below min.</span>';
+        }
+
+        document.getElementById('sub-cost-impact').innerHTML = `Cost Impact: <span class="${costImpactPerKg < 0 ? 'text-green-700' : 'text-red-700'}">${costImpactPerKg > 0 ? '+' : ''}${costImpactPerKg.toFixed(3)} BDT/kg</span> (New Cost: ${newCost.toFixed(2)} BDT/kg)`;
+        document.getElementById('sub-nutrient-gap').innerHTML = nutrientGapsHtml;
+    }
+    
+    function calculateBatchCost() {
+        const batchTonnes = parseFloat(document.getElementById('batch-size').value) || 0;
+        
+        if (Object.keys(currentMix).length === 0) {
+            document.getElementById('batch-output').innerHTML = '<p class="text-red-500 font-bold">Please run the initial formulation first!</p>';
+            return;
+        }
+
+        if (batchTonnes <= 0) {
+            document.getElementById('batch-output').innerHTML = '<p class="text-red-500 font-bold">Please enter a valid batch size (> 0 tonnes).</p>';
+            return;
+        }
+
+        const costPerKg = parseFloat(document.getElementById('total-cost').textContent);
+        const totalCostBDT = costPerKg * batchTonnes * 1000;
+        
+        let ingredientDetailsHtml = '';
+        const totalKg = batchTonnes * 1000;
+
+        Object.keys(currentMix).forEach(name => {
+            const percentage = currentMix[name];
+            const weightKg = (percentage / 100.0) * totalKg;
+            ingredientDetailsHtml += `${name}: ${weightKg.toFixed(2)} Kg, `;
+        });
+        
+        // Remove trailing comma and space
+        ingredientDetailsHtml = ingredientDetailsHtml.slice(0, -2);
+        
+        document.getElementById('batch-total-cost').textContent = `${totalCostBDT.toLocaleString('en-IN', { style: 'currency', currency: 'BDT', maximumFractionDigits: 2 })}`;
+        document.getElementById('batch-ingredient-details').textContent = `Total weight (${totalKg.toLocaleString('en-IN', { maximumFractionDigits: 0 })} Kg): ${ingredientDetailsHtml}`;
+    }
+
+    // --- Main Controller ---
+    
+    function solve() {
+        try {
+            // Run core LP mock simulation
+            const solution = solveLP(currentBird, currentPhase, currentStrategy, ingredientCosts, INGREDIENTS, REQUIREMENTS);
+            
+            currentMix = solution.mix;
+            
+            // Run sensitivity analysis on the obtained mix
+            const saData = runSensitivityAnalysis(currentMix, ingredientCosts, INGREDIENTS);
+
+            // Render all output panels
+            renderMixTable(currentMix, INGREDIENTS);
+            renderNutrientCheck(solution.achieved, REQUIREMENTS);
+            renderRecommendation(solution.cost);
+            renderSensitivityAnalysis(saData);
+            renderPriceHistory(); 
+            // renderAdvancedInsights removed as requested.
+            
+            // Re-calculate batch cost based on new mix
+            calculateBatchCost(); 
+
+        } catch (error) {
+            console.error(error);
+            document.getElementById('total-cost').textContent = 'Error';
+            document.getElementById('mix-table-body').innerHTML = `<tr><td colspan="3" class="text-center py-4 text-red-600">ERROR: ${error.message}. Check phase/strategy.</td></tr>`;
+        }
+    }
+
+    function setPhase(phaseId) {
+        currentPhase = phaseId;
+        renderIngredientInputs(); 
+        solve();
+    }
+    
+    function setStrategy(strategy) {
+        currentStrategy = strategy;
+        solve();
+    }
+
+    function setActiveTab(birdType) {
+        // Deactivate previous tab
+        document.getElementById(`tab-${currentBird}`).classList.remove('active', 'bg-green-600', 'text-white', 'shadow-md');
+        document.getElementById(`tab-${currentBird}`).classList.add('text-gray-700', 'hover:bg-gray-100');
+        
+        currentBird = birdType;
+        
+        // Activate current tab
+        document.getElementById(`tab-${currentBird}`).classList.add('active', 'bg-green-600', 'text-white', 'shadow-md');
+        document.getElementById(`tab-${currentBird}`).classList.remove('text-gray-700', 'hover:bg-gray-100');
+        
+        populatePhaseDropdown(currentBird);
+        renderIngredientInputs();
+        solve();
+    }
+
+    // Initialize the application
+    window.onload = () => {
+        // Initialize ingredientCosts from defaults
+        Object.keys(INGREDIENTS).forEach(name => {
+             ingredientCosts[name] = INGREDIENTS[name].defaultCost;
+        });
+
+        // Set initial tab and strategy values
+        document.getElementById('strategy-select').value = currentStrategy;
+        
+        // Populate substitution dropdowns
+        populateSubstitutionDropdowns();
+
+        // Start on the Broiler tab, which automatically populates the dropdown and runs the first solve
+        populatePhaseDropdown(currentBird);
+        renderIngredientInputs();
+        setActiveTab(currentBird);
+        
+        // Initial calculation run
+        calculateBatchCost();
+    };
+
+</script>
+
+</body>
+</html>
